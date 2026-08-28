@@ -29,7 +29,7 @@ esac
 
 ARCHIVE="xcodecacheprog-${VERSION}-macos-${RELEASE_ARCH}.tar.gz"
 
-URL="https://github.com/BuildFetch/xcodecacheprog-releases/releases/download/${VERSION}/${ARCHIVE}"
+URL="https://github.com/sergioboi/xcodecache-alpha-releases/releases/download/${VERSION}/${ARCHIVE}"
 
 INSTALL_DIR="${HOME}/.local/bin"
 
