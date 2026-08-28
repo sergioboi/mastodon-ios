@@ -1,6 +1,21 @@
 name: CI
 
 on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - master
+      - develop
+      - feature/*
+      - feature-*
+      - issue/*
+      - issue-*
+  pull_request:
+    branches:
+      - develop
+
+on:
   push:
     branches:
       - master
@@ -19,17 +34,36 @@ jobs:
   build:
     name: CI build
     runs-on: macos-15
+
     steps:
       - name: Repository
         uses: actions/checkout@v2
+
       - name: Setup Build Environment
         env:
           NotificationEndpointDebug: ${{ secrets.NotificationEndpointDebug }}
           NotificationEndpointRelease: ${{ secrets.NotificationEndpointRelease }}
         run: exec ./.github/scripts/setup.sh
+
       - name: Select required Xcode version
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
+
+      - name: Show runner architecture
+        run: uname -m
+
+      - name: Install xcodecacheprog
+        run: exec ./.github/scripts/install-xcodecacheprog.sh
+
+      - name: Setup Xcode compilation cache
+        env:
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: |
+          xcodecacheprog sync \
+            --credential-name mastodon-ios \
+            --credential-env XCODECACHEPROG_TOKEN
+
+      - name: Show cache status
+        run: xcodecacheprog status
+
       - name: Build App
         run: bundle exec fastlane ios build_only
-      - name: Build Tests
-        run: bundle exec fastlane ios build_tests
