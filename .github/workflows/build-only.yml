@@ -34,6 +34,18 @@ jobs:
       - name: Select required Xcode version
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
 
+      - name: Show runner network location
+        run: |
+          echo "Runner:"
+          echo "  name=$RUNNER_NAME"
+          echo "  os=$RUNNER_OS"
+          echo "  arch=$RUNNER_ARCH"
+
+          echo
+          echo "Network location:"
+          curl -fsSL https://www.cloudflare.com/cdn-cgi/trace \
+            | grep -E '^(ip|loc|colo)='
+
       - name: Show runner architecture
         run: uname -m
 
@@ -55,3 +67,8 @@ jobs:
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
         run: bundle exec fastlane ios build_only
+
+      - name: Build Tests
+        env:
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
+        run: bundle exec fastlane ios build_tests

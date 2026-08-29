@@ -65,12 +65,14 @@ platform :ios do
   end
 
   lane :build_tests do
+    xcode_cache_xcconfig = ENV.fetch("XCODE_XCCONFIG_FILE") { File.expand_path("../XcodeCache.xcconfig", __dir__) }
     destination = "platform=iOS Simulator,name=iPhone 16 Pro"
     # Mastodon iOS Tests
     scan(
       build_for_testing: true,
       destination: destination,
-      scheme: "Mastodon"
+      scheme: "Mastodon",
+      xcargs: "-xcconfig #{Shellwords.escape(xcode_cache_xcconfig)}"
     )
   end
 
