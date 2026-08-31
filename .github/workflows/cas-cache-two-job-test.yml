@@ -2,11 +2,28 @@ name: CAS cache two-job test
 
 on:
   workflow_dispatch:
+    inputs:
+      cache_mode:
+        description: Cache mode to test
+        type: choice
+        required: true
+        default: local
+        options:
+          - local
+          - remote
+      clear_local_cache_dir:
+        description: Clear .ci/cas-build-cache before cold local-cache builds
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   cas-cache-test:
     name: CAS cache warm and verify
     runs-on: macos-15
+    env:
+      CACHE_MODE: ${{ inputs.cache_mode }}
+      CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
 
     steps:
       - name: Print Mac machine info
@@ -44,15 +61,42 @@ jobs:
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
 
       - name: Install CASBuildCache
+        if: ${{ inputs.cache_mode == 'local' }}
         run: exec ./.github/scripts/install-cas-build-cache.sh
+
+      - name: Install xcodecacheprog
+        if: ${{ inputs.cache_mode == 'remote' }}
+        run: exec ./.github/scripts/install-xcodecacheprog.sh
+
+      - name: Select cache build script
+        run: |
+          if [[ "${CACHE_MODE}" == "remote" ]]; then
+            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-remote-cached-build.sh" >> "${GITHUB_ENV}"
+          else
+            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-cas-cached-build.sh" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Ensure first build starts without local CAS data
+        run: |
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
+          fi
 
       - name: Build with empty CAS cache
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
-        run: exec ./.github/scripts/run-cas-cached-build.sh
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
 
-      - name: Ensure second build starts without CAS data
-        run: rm -rf .ci/cas-build-cache
+      - name: Ensure second build starts without local CAS data
+        run: |
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
+          fi
 
       - name: Clean DerivedData before warm build
         run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
@@ -67,9 +111,11 @@ jobs:
       - name: Build after clean to warm CAS cache
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
-        run: exec ./.github/scripts/run-cas-cached-build.sh
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
 
       - name: Show warmed cache
+        if: ${{ inputs.cache_mode == 'local' }}
         run: |
           du -sh .ci/cas-build-cache
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
@@ -87,4 +133,5 @@ jobs:
       - name: Build after clean with warmed CAS cache
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
-        run: exec ./.github/scripts/run-cas-cached-build.sh
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
