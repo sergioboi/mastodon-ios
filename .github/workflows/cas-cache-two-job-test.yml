@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  warm-cache:
-    name: Warm CAS cache
+  cas-cache-test:
+    name: CAS cache warm and verify
     runs-on: macos-15
 
     steps:
@@ -32,48 +32,15 @@ jobs:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
         run: exec ./.github/scripts/run-cas-cached-build.sh
 
-      - name: Save CASBuildCache
-        uses: actions/cache/save@v6
-        with:
-          path: .ci/cas-build-cache
-          key: casbuildcache-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{ github.run_id }}
-
-  verify-cache:
-    name: Verify CAS cache hit
-    needs: warm-cache
-    runs-on: macos-15
-
-    steps:
-      - name: Repository
-        uses: actions/checkout@v6
-
-      - name: Setup Build Environment
-        env:
-          NotificationEndpointDebug: ${{ secrets.NotificationEndpointDebug }}
-          NotificationEndpointRelease: ${{ secrets.NotificationEndpointRelease }}
-        run: exec ./.github/scripts/setup.sh
-
-      - name: Select required Xcode version
-        run: sudo xcode-select -switch /Applications/Xcode_26.2.app
-
-      - name: Install CASBuildCache
-        run: exec ./.github/scripts/install-cas-build-cache.sh
-
-      - name: Restore CASBuildCache produced by warm job
-        id: restore-cas
-        uses: actions/cache/restore@v6
-        with:
-          path: .ci/cas-build-cache
-          key: casbuildcache-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}-${{ github.run_id }}
-          fail-on-cache-miss: true
-
-      - name: Show restored cache
+      - name: Show warmed cache
         run: |
-          echo "cache-hit=${{ steps.restore-cas.outputs.cache-hit }}"
           du -sh .ci/cas-build-cache
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
 
-      - name: Build with restored CAS
+      - name: Clean DerivedData after warm
+        run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: Build with warmed CAS
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
         run: exec ./.github/scripts/run-cas-cached-build.sh
