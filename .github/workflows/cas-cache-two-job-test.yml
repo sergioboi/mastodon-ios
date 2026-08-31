@@ -62,6 +62,13 @@ jobs:
       - name: Clean DerivedData after warm
         run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
+      - name: Clean Xcode build products before warmed build
+        run: |
+          xcodebuild clean \
+            -project Mastodon.xcodeproj \
+            -scheme Mastodon \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+
       - name: Build with warmed CAS
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
