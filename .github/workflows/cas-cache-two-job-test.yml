@@ -43,13 +43,30 @@ jobs:
       - name: Select required Xcode version
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
 
+      - name: Build without CAS cache
+        run: |
+          xcodebuild clean build \
+            -project Mastodon.xcodeproj \
+            -scheme Mastodon \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+
       - name: Install CASBuildCache
         run: exec ./.github/scripts/install-cas-build-cache.sh
 
-      - name: Ensure warm job starts without CAS data
+      - name: Ensure warm build starts without CAS data
         run: rm -rf .ci/cas-build-cache
 
-      - name: Warm CASBuildCache
+      - name: Clean DerivedData before warm build
+        run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: Clean Xcode build products before warm build
+        run: |
+          xcodebuild clean \
+            -project Mastodon.xcodeproj \
+            -scheme Mastodon \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+
+      - name: Build with empty CAS to warm cache
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
         run: exec ./.github/scripts/run-cas-cached-build.sh
@@ -59,7 +76,7 @@ jobs:
           du -sh .ci/cas-build-cache
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
 
-      - name: Clean DerivedData after warm
+      - name: Clean DerivedData before warmed build
         run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
       - name: Clean Xcode build products before warmed build
@@ -69,7 +86,7 @@ jobs:
             -scheme Mastodon \
             -destination "platform=iOS Simulator,name=iPhone 16 Pro"
 
-      - name: Build with warmed CAS
+      - name: Build with warmed CAS cache
         env:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
         run: exec ./.github/scripts/run-cas-cached-build.sh
