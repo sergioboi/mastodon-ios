@@ -9,6 +9,28 @@ jobs:
     runs-on: macos-15
 
     steps:
+      - name: Print Mac machine info
+        run: |
+          echo "Runner:"
+          echo "  name=${RUNNER_NAME}"
+          echo "  os=${RUNNER_OS}"
+          echo "  arch=${RUNNER_ARCH}"
+
+          echo
+          echo "macOS:"
+          sw_vers
+
+          echo
+          echo "Hardware:"
+          echo "  model=$(sysctl -n hw.model)"
+          echo "  cpu=$(sysctl -n machdep.cpu.brand_string)"
+          echo "  arch=$(uname -m)"
+          echo "  physical_cores=$(sysctl -n hw.physicalcpu)"
+          echo "  logical_cores=$(sysctl -n hw.logicalcpu)"
+          mem_bytes="$(sysctl -n hw.memsize)"
+          ram_gb="$(awk -v bytes="${mem_bytes}" 'BEGIN { printf "%.2f", bytes / 1024 / 1024 / 1024 }')"
+          echo "  ram_gb=${ram_gb}"
+
       - name: Repository
         uses: actions/checkout@v6
 
