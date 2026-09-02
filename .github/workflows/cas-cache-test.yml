@@ -1,0 +1,148 @@
+name: CAS cache test
+
+on:
+  workflow_dispatch:
+    inputs:
+      cache_mode:
+        description: Cache mode to test
+        type: choice
+        required: true
+        default: local
+        options:
+          - local
+          - remote
+      clear_local_cache_dir:
+        description: Clear .ci/cas-build-cache before cold local-cache builds
+        type: boolean
+        required: true
+        default: true
+
+jobs:
+  cas-cache-test:
+    name: CAS cache build tests and verify
+    runs-on: macos-15
+    env:
+      CACHE_MODE: ${{ inputs.cache_mode }}
+      CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
+      FASTLANE_LANE: build_tests
+
+    steps:
+      - name: Print Mac machine info
+        run: |
+          echo "Runner:"
+          echo "  name=${RUNNER_NAME}"
+          echo "  os=${RUNNER_OS}"
+          echo "  arch=${RUNNER_ARCH}"
+
+          echo
+          echo "macOS:"
+          sw_vers
+
+          echo
+          echo "Hardware:"
+          echo "  model=$(sysctl -n hw.model)"
+          echo "  cpu=$(sysctl -n machdep.cpu.brand_string)"
+          echo "  arch=$(uname -m)"
+          echo "  physical_cores=$(sysctl -n hw.physicalcpu)"
+          echo "  logical_cores=$(sysctl -n hw.logicalcpu)"
+          mem_bytes="$(sysctl -n hw.memsize)"
+          ram_gb="$(awk -v bytes="${mem_bytes}" 'BEGIN { printf "%.2f", bytes / 1024 / 1024 / 1024 }')"
+          echo "  ram_gb=${ram_gb}"
+
+      - name: Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Build Environment
+        env:
+          NotificationEndpointDebug: ${{ secrets.NotificationEndpointDebug }}
+          NotificationEndpointRelease: ${{ secrets.NotificationEndpointRelease }}
+        run: exec ./.github/scripts/setup.sh
+
+      - name: Select required Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode_26.2.app
+
+      - name: Install CASBuildCache
+        if: ${{ inputs.cache_mode == 'local' }}
+        run: exec ./.github/scripts/install-cas-build-cache.sh
+
+      - name: Install xcodecacheprog
+        if: ${{ inputs.cache_mode == 'remote' }}
+        run: exec ./.github/scripts/install-xcodecacheprog.sh
+
+      - name: Select cache build script
+        run: |
+          if [[ "${CACHE_MODE}" == "remote" ]]; then
+            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-remote-cached-build.sh" >> "${GITHUB_ENV}"
+          else
+            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-cas-cached-build.sh" >> "${GITHUB_ENV}"
+          fi
+
+      - name: Ensure first build starts without local CAS data
+        run: |
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
+          fi
+
+      - name: Clean test DerivedData before first build
+        run: rm -rf build/DerivedData
+
+      - name: Build tests with empty CAS cache
+        env:
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
+
+      - name: Ensure second build starts without local CAS data
+        run: |
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
+          fi
+
+      - name: Clean DerivedData before warm build
+        run: |
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+          rm -rf build/DerivedData
+
+      - name: Clean Xcode build products before warm build
+        run: |
+          xcodebuild clean \
+            -project Mastodon.xcodeproj \
+            -scheme Mastodon \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+
+      - name: Build tests after clean to warm CAS cache
+        env:
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
+
+      - name: Show warmed cache
+        if: ${{ inputs.cache_mode == 'local' }}
+        run: |
+          du -sh .ci/cas-build-cache
+          find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
+
+      - name: Clean DerivedData before warmed build
+        run: |
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+          rm -rf build/DerivedData
+
+      - name: Clean Xcode build products before warmed build
+        run: |
+          xcodebuild clean \
+            -project Mastodon.xcodeproj \
+            -scheme Mastodon \
+            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+
+      - name: Build tests after clean with warmed CAS cache
+        env:
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec "${CACHE_BUILD_SCRIPT}"
+
+      - name: Test without building
+        run: bundle exec fastlane ios test_without_building

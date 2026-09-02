@@ -10,6 +10,7 @@ fi
 CREDENTIAL_NAME="${XCODECACHEPROG_CREDENTIAL_NAME:-mastodon-ios}"
 CONFIG_DIR="${RUNNER_TEMP}/xcodecacheprog"
 CONFIG_FILE="${CONFIG_DIR}/XcodeRemoteCache.xcconfig"
+FASTLANE_LANE="${FASTLANE_LANE:-build_only}"
 
 mkdir -p "$CONFIG_DIR"
 
@@ -27,8 +28,8 @@ rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 echo "Remote cache status before build"
 xcodecacheprog status
 
-echo "Running Mastodon build"
-XCODE_XCCONFIG_FILE="$CONFIG_FILE" bundle exec fastlane ios build_only
+echo "Running Mastodon ${FASTLANE_LANE}"
+XCODE_XCCONFIG_FILE="$CONFIG_FILE" bundle exec fastlane ios "$FASTLANE_LANE"
 
 echo
 echo "Remote cache status after build"

@@ -8,6 +8,7 @@ CONFIG_FILE="${STATE_DIR}/config.toml"
 SOCKET_PATH="${HOME}/.local/state/cas-build-cache/cache.sock"
 EXPORT_DIR="${STATE_DIR}/exports"
 SERVER_LOG="${STATE_DIR}/server.log"
+FASTLANE_LANE="${FASTLANE_LANE:-build_only}"
 
 mkdir -p "$CACHE_DIR"
 mkdir -p "$STATE_DIR"
@@ -90,8 +91,8 @@ rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 echo "Cache status before build"
 cas-cache-cli --config "$CONFIG_FILE" status
 
-echo "Running Mastodon build"
-bundle exec fastlane ios build_only
+echo "Running Mastodon ${FASTLANE_LANE}"
+bundle exec fastlane ios "$FASTLANE_LANE"
 
 stop_server
 trap - EXIT
