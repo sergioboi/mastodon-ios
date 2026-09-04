@@ -14,6 +14,12 @@ extension UInt64 {
 @MainActor
 class MastodonUISnapshotTests: XCTestCase {
 
+    private func requireRealAccountTestsEnabled() throws {
+        guard ProcessInfo.processInfo.environment["RUN_REAL_ACCOUNT_UI_TESTS"] == "1" else {
+            throw XCTSkip("Requires a real Mastodon account")
+        }
+    }
+
     override func setUpWithError() throws {
         // Put setup code here. This method is called before the invocation of each test method in the class.
     }
@@ -127,6 +133,7 @@ extension MastodonUISnapshotTests {
 extension MastodonUISnapshotTests {
 
     func testSnapshotThread() async throws {
+        try requireRealAccountTestsEnabled()
         try await snapshot(name: "Thread") { app in
             let threadID = ProcessInfo.processInfo.environment["thread_id"]!
             try await coordinateToThread(app: app, id: threadID)
@@ -168,6 +175,7 @@ extension MastodonUISnapshotTests {
 extension MastodonUISnapshotTests {
     
     func testSnapshotProfile() async throws {
+        try requireRealAccountTestsEnabled()
         try await snapshot(name: "Profile") { app in
             let profileID = ProcessInfo.processInfo.environment["profile_id"]!
             try await coordinateToProfile(app: app, id: profileID)
@@ -235,6 +243,7 @@ extension MastodonUISnapshotTests {
 extension MastodonUISnapshotTests {
 
     func testSnapshotCompose() async throws {
+        try requireRealAccountTestsEnabled()
         try await snapshot(name: "Compose") { app in
             // open Compose scene
             let composeBarButtonItem = app.navigationBars.buttons["Compose"].firstMatch
@@ -274,6 +283,7 @@ extension MastodonUISnapshotTests {
     
     // Please check the Documentation/Snapshot.md and run this test case in the command line
     func testSignInAccount() async throws {
+        try requireRealAccountTestsEnabled()
         guard let domain = ProcessInfo.processInfo.environment["login_domain"] else {
             fatalError("env 'login_domain' missing")
         }
@@ -418,13 +428,12 @@ extension MastodonUISnapshotTests {
             continueButton.tap()
         case .serverRules(let domain):
             // Tap sign up button
-            let signUpButton = app.buttons["Get Started"].firstMatch
-            XCTAssert(signUpButton.waitForExistence(timeout: 3))
-            signUpButton.tap()
-            // type domain
-            try await type(domain: domain)
-            // tap next
-            try await selectServerAndContinue(app: app, domain: domain)
+            let joinButton = app.buttons["Join \(domain)"].firstMatch
+            guard joinButton.waitForExistence(timeout: 3) else {
+                XCTFail("Join \(domain) button not found")
+                return
+            }
+            joinButton.tap()
         }
     }
     
