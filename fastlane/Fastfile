@@ -65,21 +65,27 @@ platform :ios do
   end
 
   lane :build_tests do
-    xcode_cache_xcconfig = ENV.fetch("XCODE_XCCONFIG_FILE") {
-      File.expand_path("../XcodeCache.xcconfig", __dir__)
+    project = ENV.fetch("PROJECT", "Mastodon.xcodeproj")
+    scheme = ENV.fetch("SCHEME", "Mastodon")
+    test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
+    destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2")
+    derived_data_path = ENV.fetch("DERIVED_DATA_PATH") {
+      File.expand_path("../build/DerivedData", __dir__)
     }
-
-    destination = "platform=iOS Simulator,name=iPhone 16 Pro"
-    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
-
-    scan(
+    scan_options = {
       build_for_testing: true,
       derived_data_path: derived_data_path,
       destination: destination,
-      scheme: "Mastodon",
-      testplan: "Mastodon",
-      xcargs: "-xcconfig #{Shellwords.escape(xcode_cache_xcconfig)}"
-    )
+      project: project,
+      scheme: scheme,
+      testplan: test_plan
+    }
+
+    unless ENV["XCODE_XCCONFIG_FILE"].to_s.empty?
+      scan_options[:xcargs] = "-xcconfig #{Shellwords.escape(ENV.fetch("XCODE_XCCONFIG_FILE"))}"
+    end
+
+    scan(scan_options)
   end
 
   lane :test_without_building do

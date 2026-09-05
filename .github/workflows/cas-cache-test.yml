@@ -25,6 +25,11 @@ jobs:
       CACHE_MODE: ${{ inputs.cache_mode }}
       CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
       FASTLANE_LANE: build_tests
+      PROJECT: Mastodon.xcodeproj
+      SCHEME: Mastodon
+      TEST_PLAN: Mastodon
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2"
+      DERIVED_DATA_PATH: ${{ github.workspace }}/build_2/DerivedData
 
     steps:
       - name: Print Mac machine info
@@ -66,59 +71,64 @@ jobs:
         run: exec ./.github/scripts/install-cas-build-cache.sh
 
       - name: Install xcodecacheprog
-        if: ${{ inputs.cache_mode == 'remote' }}
         run: exec ./.github/scripts/install-xcodecacheprog.sh
 
-      - name: Select cache build script
-        run: |
-          if [[ "${CACHE_MODE}" == "remote" ]]; then
-            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-remote-cached-build.sh" >> "${GITHUB_ENV}"
-          else
-            echo "CACHE_BUILD_SCRIPT=./.github/scripts/run-cas-cached-build.sh" >> "${GITHUB_ENV}"
-          fi
-
-      - name: Ensure first build starts without local CAS data
-        run: |
-          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
-            rm -rf .ci/cas-build-cache
-          else
-            echo "Skipping local CAS cache directory cleanup"
-          fi
-
-      - name: Clean test DerivedData before first build
-        run: rm -rf build/DerivedData
-
-      - name: Build tests with empty CAS cache
+      - name: Build tests without cache
         env:
-          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
-          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
-        run: exec "${CACHE_BUILD_SCRIPT}"
+          ENABLE_XCODE_COMPILATION_CACHE: "false"
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
+        run: exec ./.github/scripts/build-for-testing.sh
 
-      - name: Ensure second build starts without local CAS data
-        run: |
-          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
-            rm -rf .ci/cas-build-cache
-          else
-            echo "Skipping local CAS cache directory cleanup"
-          fi
-
-      - name: Clean DerivedData before warm build
-        run: |
-          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
-          rm -rf build/DerivedData
-
-      - name: Clean Xcode build products before warm build
+      - name: Clean before second no-cache build
         run: |
           xcodebuild clean \
-            -project Mastodon.xcodeproj \
-            -scheme Mastodon \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
+            -project "${PROJECT}" \
+            -scheme "${SCHEME}" \
+            -destination "${DESTINATION}"
+          rm -rf "${DERIVED_DATA_PATH}"
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
-      - name: Build tests after clean to warm CAS cache
+      - name: Build tests without cache after clean
         env:
-          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
+          ENABLE_XCODE_COMPILATION_CACHE: "false"
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
+        run: exec ./.github/scripts/build-for-testing.sh
+
+      - name: Test second no-cache build
+        run: |
+          XCTESTRUN_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
+          if [[ -z "${XCTESTRUN_PATH}" ]]; then
+            echo "No .xctestrun file found under ${DERIVED_DATA_PATH}/Build/Products" >&2
+            exit 1
+          fi
+
+          xcodecacheprog test \
+            --xctestrun "${XCTESTRUN_PATH}" \
+            --destination "${DESTINATION}" \
+            --ignore-non-cacheable
+
+      - name: Ensure cached build starts without local CAS data when requested
+        run: |
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
+          fi
+
+      - name: Clean before cached build
+        run: |
+          xcodebuild clean \
+            -project "${PROJECT}" \
+            -scheme "${SCHEME}" \
+            -destination "${DESTINATION}"
+          rm -rf "${DERIVED_DATA_PATH}"
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: Build tests with cache enabled
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "true"
           XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
-        run: exec "${CACHE_BUILD_SCRIPT}"
+        run: exec ./.github/scripts/build-for-testing.sh
 
       - name: Show warmed cache
         if: ${{ inputs.cache_mode == 'local' }}
@@ -126,23 +136,15 @@ jobs:
           du -sh .ci/cas-build-cache
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
 
-      - name: Clean DerivedData before warmed build
+      - name: Test cached build
         run: |
-          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
-          rm -rf build/DerivedData
+          XCTESTRUN_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
+          if [[ -z "${XCTESTRUN_PATH}" ]]; then
+            echo "No .xctestrun file found under ${DERIVED_DATA_PATH}/Build/Products" >&2
+            exit 1
+          fi
 
-      - name: Clean Xcode build products before warmed build
-        run: |
-          xcodebuild clean \
-            -project Mastodon.xcodeproj \
-            -scheme Mastodon \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
-
-      - name: Build tests after clean with warmed CAS cache
-        env:
-          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/XcodeCache.xcconfig
-          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
-        run: exec "${CACHE_BUILD_SCRIPT}"
-
-      - name: Test without building
-        run: bundle exec fastlane ios test_without_building
+          xcodecacheprog test \
+            --xctestrun "${XCTESTRUN_PATH}" \
+            --destination "${DESTINATION}" \
+            --ignore-non-cacheable

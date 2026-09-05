@@ -5,6 +5,7 @@ set -euo pipefail
 CACHE_DIR="${GITHUB_WORKSPACE}/.ci/cas-build-cache"
 STATE_DIR="${RUNNER_TEMP}/cas-build-cache"
 CONFIG_FILE="${STATE_DIR}/config.toml"
+XCCONFIG_FILE="${STATE_DIR}/XcodeLocalCache.xcconfig"
 SOCKET_PATH="${HOME}/.local/state/cas-build-cache/cache.sock"
 EXPORT_DIR="${STATE_DIR}/exports"
 SERVER_LOG="${STATE_DIR}/server.log"
@@ -43,9 +44,16 @@ level = "debug"
 format = "pretty"
 EOF
 
+cat > "$XCCONFIG_FILE" <<EOF
+COMPILATION_CACHE_ENABLE_CACHING = YES
+COMPILATION_CACHE_ENABLE_PLUGIN = YES
+COMPILATION_CACHE_REMOTE_SERVICE_PATH = ${SOCKET_PATH}
+EOF
+
 echo "CAS storage: ${CACHE_DIR}"
 echo "CAS socket:  ${SOCKET_PATH}"
 echo "CAS config:  ${CONFIG_FILE}"
+echo "CAS xcconfig: ${XCCONFIG_FILE}"
 
 RUST_LOG=cas_build_cache=debug \
   cas-cache-server \
@@ -92,7 +100,7 @@ echo "Cache status before build"
 cas-cache-cli --config "$CONFIG_FILE" status
 
 echo "Running Mastodon ${FASTLANE_LANE}"
-bundle exec fastlane ios "$FASTLANE_LANE"
+XCODE_XCCONFIG_FILE="$XCCONFIG_FILE" bundle exec fastlane ios "$FASTLANE_LANE"
 
 stop_server
 trap - EXIT
