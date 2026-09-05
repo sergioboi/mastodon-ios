@@ -1,4 +1,3 @@
-
 #!/usr/bin/env bash
 
 set -euo pipefail
@@ -62,6 +61,18 @@ install \
   "${INSTALL_DIR}/xcodecacheprog"
 
 "${INSTALL_DIR}/xcodecacheprog" --help >/dev/null
+
+CREDENTIAL_NAME="${XCODECACHEPROG_CREDENTIAL_NAME:-mastodon-ios}"
+
+if [[ -z "${XCODECACHEPROG_TOKEN:-}" ]]; then
+  echo "XCODECACHEPROG_TOKEN is required to sync xcodecacheprog" >&2
+  exit 1
+fi
+
+echo "Configuring xcodecacheprog"
+"${INSTALL_DIR}/xcodecacheprog" sync \
+  --credential-name "$CREDENTIAL_NAME" \
+  --credential-env XCODECACHEPROG_TOKEN
 
 if [[ -n "${GITHUB_PATH:-}" ]]; then
   echo "$INSTALL_DIR" >> "$GITHUB_PATH"

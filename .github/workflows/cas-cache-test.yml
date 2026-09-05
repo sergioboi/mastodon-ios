@@ -71,6 +71,8 @@ jobs:
         run: exec ./.github/scripts/install-cas-build-cache.sh
 
       - name: Install xcodecacheprog
+        env:
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
         run: exec ./.github/scripts/install-xcodecacheprog.sh
 
       - name: Build tests without cache
@@ -127,7 +129,6 @@ jobs:
       - name: Build tests with cache enabled
         env:
           ENABLE_XCODE_COMPILATION_CACHE: "true"
-          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
         run: exec ./.github/scripts/build-for-testing.sh
 
       - name: Show warmed cache

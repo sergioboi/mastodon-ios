@@ -66,6 +66,8 @@ jobs:
 
       - name: Install xcodecacheprog
         if: ${{ inputs.cache_mode == 'remote' }}
+        env:
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
         run: exec ./.github/scripts/install-xcodecacheprog.sh
 
       - name: Select cache build script

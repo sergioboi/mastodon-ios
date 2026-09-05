@@ -50,15 +50,9 @@ jobs:
         run: uname -m
 
       - name: Install xcodecacheprog
-        run: exec ./.github/scripts/install-xcodecacheprog.sh
-
-      - name: Setup Xcode compilation cache
         env:
           XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
-        run: |
-          xcodecacheprog sync \
-            --credential-name mastodon-ios \
-            --credential-env XCODECACHEPROG_TOKEN
+        run: exec ./.github/scripts/install-xcodecacheprog.sh
 
       - name: Show cache status
         run: xcodecacheprog status
