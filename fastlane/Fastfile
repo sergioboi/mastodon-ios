@@ -89,16 +89,24 @@ platform :ios do
   end
 
   lane :test_without_building do
-    destination = "platform=iOS Simulator,name=iPhone 16 Pro"
-    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
+    project = ENV.fetch("PROJECT", "Mastodon.xcodeproj")
+    scheme = ENV.fetch("SCHEME", "Mastodon")
+    test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
+    destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2")
+    derived_data_path = ENV.fetch("DERIVED_DATA_PATH") {
+      File.expand_path("../build/DerivedData", __dir__)
+    }
 
-    scan(
+    scan_options = {
       test_without_building: true,
       derived_data_path: derived_data_path,
       destination: destination,
-      scheme: "Mastodon",
-      testplan: "Mastodon"
-    )
+      project: project,
+      scheme: scheme,
+      testplan: test_plan
+    }
+
+    scan(scan_options)
   end
 
   desc " Build and deploy the App to App Store Connect & TestFlight"

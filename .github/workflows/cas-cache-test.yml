@@ -97,17 +97,7 @@ jobs:
         run: exec ./.github/scripts/build-for-testing.sh
 
       - name: Test second no-cache build
-        run: |
-          XCTESTRUN_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
-          if [[ -z "${XCTESTRUN_PATH}" ]]; then
-            echo "No .xctestrun file found under ${DERIVED_DATA_PATH}/Build/Products" >&2
-            exit 1
-          fi
-
-          xcodecacheprog test \
-            --xctestrun "${XCTESTRUN_PATH}" \
-            --destination "${DESTINATION}" \
-            --ignore-non-cacheable
+        run: exec bundle exec fastlane ios test_without_building
 
       - name: Ensure cached build starts without local CAS data when requested
         run: |
