@@ -69,7 +69,7 @@ platform :ios do
     project = ENV.fetch("PROJECT", "Mastodon.xcodeproj")
     scheme = ENV.fetch("SCHEME", "Mastodon")
     test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
-    destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1")
+    destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2")
     derived_data_path = File.expand_path("../build/DerivedData", __dir__)
 
     build_options = {
