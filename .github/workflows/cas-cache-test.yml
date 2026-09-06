@@ -2,28 +2,13 @@ name: CAS cache build and test
 
 on:
   workflow_dispatch:
-    inputs:
-      cache_mode:
-        description: Cache mode to test
-        type: choice
-        required: true
-        default: local
-        options:
-          - local
-          - remote
-      clear_local_cache_dir:
-        description: Clear .ci/cas-build-cache before cold local-cache builds
-        type: boolean
-        required: true
-        default: true
 
 jobs:
   cas-cache-test:
     name: CAS cache build tests and verify
     runs-on: macos-15
     env:
-      CACHE_MODE: ${{ inputs.cache_mode }}
-      CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
+      CACHE_MODE: remote
       FASTLANE_LANE: build_tests
       PROJECT: Mastodon.xcodeproj
       SCHEME: Mastodon
@@ -65,10 +50,6 @@ jobs:
       - name: Select required Xcode version
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
 
-      - name: Install CASBuildCache
-        if: ${{ inputs.cache_mode == 'local' }}
-        run: exec ./.github/scripts/install-cas-build-cache.sh
-
       - name: Install xcodecacheprog
         env:
           XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
@@ -80,7 +61,10 @@ jobs:
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
         run: exec ./.github/scripts/build-for-testing.sh
 
-      - name: Clean before second no-cache build
+      - name: Test first no-cache build
+        run: exec bundle exec fastlane ios test_without_building
+
+      - name: Full clean before second no-cache build
         run: |
           xcodebuild clean \
             -project "${PROJECT}" \
@@ -98,15 +82,7 @@ jobs:
       - name: Test second no-cache build
         run: exec bundle exec fastlane ios test_without_building
 
-      - name: Ensure cached build starts without local CAS data when requested
-        run: |
-          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
-            rm -rf .ci/cas-build-cache
-          else
-            echo "Skipping local CAS cache directory cleanup"
-          fi
-
-      - name: Clean before cached build
+      - name: Full clean before remote cached build
         run: |
           xcodebuild clean \
             -project "${PROJECT}" \
@@ -120,13 +96,7 @@ jobs:
           ENABLE_XCODE_COMPILATION_CACHE: "true"
         run: exec ./.github/scripts/build-for-testing.sh
 
-      - name: Show warmed cache
-        if: ${{ inputs.cache_mode == 'local' }}
-        run: |
-          du -sh .ci/cas-build-cache
-          find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
-
-      - name: Test cached build
+      - name: Test remote cached build with xcodecacheprog
         run: |
           XCTESTRUN_PATH="$(find "build/DerivedData/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
           if [[ -z "${XCTESTRUN_PATH}" ]]; then
