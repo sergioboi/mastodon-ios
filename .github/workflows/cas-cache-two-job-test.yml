@@ -101,7 +101,9 @@ jobs:
           fi
 
       - name: Clean DerivedData before warm build
-        run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
       - name: Clean Xcode build products before warm build
         run: |
@@ -123,7 +125,9 @@ jobs:
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
 
       - name: Clean DerivedData before warmed build
-        run: rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
       - name: Clean Xcode build products before warmed build
         run: |
