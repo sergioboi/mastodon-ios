@@ -9,7 +9,7 @@ XCCONFIG_FILE="${STATE_DIR}/XcodeLocalCache.xcconfig"
 SOCKET_PATH="${HOME}/.local/state/cas-build-cache/cache.sock"
 EXPORT_DIR="${STATE_DIR}/exports"
 SERVER_LOG="${STATE_DIR}/server.log"
-FASTLANE_LANE="${FASTLANE_LANE:-build_only}"
+FASTLANE_LANE="${FASTLANE_LANE}"
 
 mkdir -p "$CACHE_DIR"
 mkdir -p "$STATE_DIR"

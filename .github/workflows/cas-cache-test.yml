@@ -24,7 +24,7 @@ jobs:
     env:
       CACHE_MODE: ${{ inputs.cache_mode }}
       CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
-      FASTLANE_LANE: build_tests
+      FASTLANE_LANE: build_and_build_for_testing
       PROJECT: Mastodon.xcodeproj
       SCHEME: Mastodon
       TEST_PLAN: Mastodon

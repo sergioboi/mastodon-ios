@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-FASTLANE_LANE="${FASTLANE_LANE:-build_tests}"
+FASTLANE_LANE="${FASTLANE_LANE}"
 ENABLE_XCODE_COMPILATION_CACHE="${ENABLE_XCODE_COMPILATION_CACHE:-false}"
 
 if [[ "${ENABLE_XCODE_COMPILATION_CACHE}" != "true" ]]; then
@@ -10,7 +10,7 @@ if [[ "${ENABLE_XCODE_COMPILATION_CACHE}" != "true" ]]; then
   exec bundle exec fastlane ios "$FASTLANE_LANE"
 fi
 
-case "${CACHE_MODE:-local}" in
+case "${CACHE_MODE}" in
   local)
     exec ./.github/scripts/run-cas-cached-build.sh
     ;;

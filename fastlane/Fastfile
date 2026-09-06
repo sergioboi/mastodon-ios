@@ -64,6 +64,30 @@ platform :ios do
     )
   end
 
+  desc "Build the app and build it for testing"
+  lane :build_and_build_for_testing do
+    project = ENV.fetch("PROJECT", "Mastodon.xcodeproj")
+    scheme = ENV.fetch("SCHEME", "Mastodon")
+    test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
+    destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.3.1")
+    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
+
+    build_options = {
+      derived_data_path: derived_data_path,
+      destination: destination,
+      project: project,
+      scheme: scheme,
+      testplan: test_plan
+    }
+
+    unless ENV["XCODE_XCCONFIG_FILE"].to_s.empty?
+      build_options[:xcargs] = "-xcconfig #{Shellwords.escape(ENV.fetch("XCODE_XCCONFIG_FILE"))}"
+    end
+
+    xcodebuild(build_options.merge(build: true))
+    xcodebuild(build_options.merge(build_for_testing: true))
+  end
+
   lane :build_tests do
     project = ENV.fetch("PROJECT", "Mastodon.xcodeproj")
     scheme = ENV.fetch("SCHEME", "Mastodon")

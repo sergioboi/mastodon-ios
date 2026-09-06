@@ -4,7 +4,7 @@ set -euo pipefail
 
 CONFIG_DIR="${RUNNER_TEMP}/xcodecacheprog"
 CONFIG_FILE="${CONFIG_DIR}/XcodeRemoteCache.xcconfig"
-FASTLANE_LANE="${FASTLANE_LANE:-build_only}"
+FASTLANE_LANE="${FASTLANE_LANE}"
 
 mkdir -p "$CONFIG_DIR"
 
