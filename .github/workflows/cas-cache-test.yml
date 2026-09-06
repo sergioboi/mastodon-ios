@@ -64,12 +64,8 @@ jobs:
       - name: Test first no-cache build
         run: exec bundle exec fastlane ios test_without_building
 
-      - name: Full clean before second no-cache build
+      - name: Remove build state
         run: |
-          xcodebuild clean \
-            -project "${PROJECT}" \
-            -scheme "${SCHEME}" \
-            -destination "${DESTINATION}"
           rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
@@ -82,12 +78,8 @@ jobs:
       - name: Test second no-cache build
         run: exec bundle exec fastlane ios test_without_building
 
-      - name: Full clean before remote cached build
+      - name: Remove build state
         run: |
-          xcodebuild clean \
-            -project "${PROJECT}" \
-            -scheme "${SCHEME}" \
-            -destination "${DESTINATION}"
           rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 

@@ -54,11 +54,13 @@ platform :ios do
 
   lane :build_only do
     xcode_cache_xcconfig = ENV.fetch("XCODE_XCCONFIG_FILE") { File.expand_path("../XcodeCache.xcconfig", __dir__) }
+    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
 
     xcodebuild(
       clean: true,
       build: true,
       destination: "platform=iOS Simulator,name=iPhone 16 Pro",
+      derived_data_path: derived_data_path,
       scheme: "#{$appName}",
       xcargs: "-xcconfig #{Shellwords.escape(xcode_cache_xcconfig)}"
     )

@@ -101,17 +101,10 @@ jobs:
             echo "Skipping local CAS cache directory cleanup"
           fi
 
-      - name: Clean DerivedData before warm build
+      - name: Remove build state
         run: |
           rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
-
-      - name: Clean Xcode build products before warm build
-        run: |
-          xcodebuild clean \
-            -project Mastodon.xcodeproj \
-            -scheme Mastodon \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
 
       - name: Build after clean to warm CAS cache
         env:
@@ -125,17 +118,10 @@ jobs:
           du -sh .ci/cas-build-cache
           find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
 
-      - name: Clean DerivedData before warmed build
+      - name: Remove build state
         run: |
           rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
-
-      - name: Clean Xcode build products before warmed build
-        run: |
-          xcodebuild clean \
-            -project Mastodon.xcodeproj \
-            -scheme Mastodon \
-            -destination "platform=iOS Simulator,name=iPhone 16 Pro"
 
       - name: Build after clean with warmed CAS cache
         env:
