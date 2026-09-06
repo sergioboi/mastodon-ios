@@ -1,4 +1,4 @@
-name: CAS cache test
+name: CAS cache build and test
 
 on:
   workflow_dispatch:

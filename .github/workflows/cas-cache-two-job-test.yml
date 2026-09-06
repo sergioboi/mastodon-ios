@@ -1,4 +1,4 @@
-name: CAS cache two-job test
+name: CAS cache build
 
 on:
   workflow_dispatch:
