@@ -69,9 +69,8 @@ platform :ios do
     scheme = ENV.fetch("SCHEME", "Mastodon")
     test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
     destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2")
-    derived_data_path = ENV.fetch("DERIVED_DATA_PATH") {
-      File.expand_path("../build/DerivedData", __dir__)
-    }
+    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
+
     scan_options = {
       build_for_testing: true,
       derived_data_path: derived_data_path,
@@ -93,9 +92,7 @@ platform :ios do
     scheme = ENV.fetch("SCHEME", "Mastodon")
     test_plan = ENV.fetch("TEST_PLAN", "Mastodon")
     destination = ENV.fetch("DESTINATION", "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2")
-    derived_data_path = ENV.fetch("DERIVED_DATA_PATH") {
-      File.expand_path("../build/DerivedData", __dir__)
-    }
+    derived_data_path = File.expand_path("../build/DerivedData", __dir__)
 
     scan_options = {
       test_without_building: true,

@@ -29,7 +29,6 @@ jobs:
       SCHEME: Mastodon
       TEST_PLAN: Mastodon
       DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2"
-      DERIVED_DATA_PATH: ${{ github.workspace }}/build_2/DerivedData
 
     steps:
       - name: Print Mac machine info
@@ -87,7 +86,7 @@ jobs:
             -project "${PROJECT}" \
             -scheme "${SCHEME}" \
             -destination "${DESTINATION}"
-          rm -rf "${DERIVED_DATA_PATH}"
+          rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
       - name: Build tests without cache after clean
@@ -113,7 +112,7 @@ jobs:
             -project "${PROJECT}" \
             -scheme "${SCHEME}" \
             -destination "${DESTINATION}"
-          rm -rf "${DERIVED_DATA_PATH}"
+          rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
       - name: Build tests with cache enabled
@@ -129,9 +128,9 @@ jobs:
 
       - name: Test cached build
         run: |
-          XCTESTRUN_PATH="$(find "${DERIVED_DATA_PATH}/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
+          XCTESTRUN_PATH="$(find "build/DerivedData/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
           if [[ -z "${XCTESTRUN_PATH}" ]]; then
-            echo "No .xctestrun file found under ${DERIVED_DATA_PATH}/Build/Products" >&2
+            echo "No .xctestrun file found under build/DerivedData/Build/Products" >&2
             exit 1
           fi
 
