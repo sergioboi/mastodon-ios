@@ -59,6 +59,11 @@ jobs:
           XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
         run: exec ./.github/scripts/install-xcodecacheprog.sh
 
+      - name: Remove local build state
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
       - name: "build `${{ env.FASTLANE_LANE }}` without cache"
         env:
           ENABLE_XCODE_COMPILATION_CACHE: "false"
