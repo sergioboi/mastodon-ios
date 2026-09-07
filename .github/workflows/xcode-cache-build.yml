@@ -1,19 +1,30 @@
-name: CAS cache build and test
+name: Xcode cache build
 
 on:
   workflow_dispatch:
+    inputs:
+      cache_mode:
+        description: Cache mode to test
+        type: choice
+        required: true
+        default: local
+        options:
+          - local
+          - remote
+      clear_local_cache_dir:
+        description: Clear .ci/cas-build-cache before cold local-cache builds
+        type: boolean
+        required: true
+        default: true
 
 jobs:
   cas-cache-test:
-    name: CAS cache build tests and verify
+    name: Xcode cache build
     runs-on: macos-15
     env:
-      CACHE_MODE: remote
-      FASTLANE_LANE: build_tests
-      PROJECT: Mastodon.xcodeproj
-      SCHEME: Mastodon
-      TEST_PLAN: Mastodon
-      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2"
+      CACHE_MODE: ${{ inputs.cache_mode }}
+      CLEAR_LOCAL_CACHE_DIR: ${{ inputs.clear_local_cache_dir }}
+      FASTLANE_LANE: build_only
 
     steps:
       - name: Print Mac machine info
@@ -50,53 +61,65 @@ jobs:
       - name: Select required Xcode version
         run: sudo xcode-select -switch /Applications/Xcode_26.2.app
 
+      - name: Install CASBuildCache
+        if: ${{ inputs.cache_mode == 'local' }}
+        run: exec ./.github/scripts/install-cas-build-cache.sh
+
       - name: Install xcodecacheprog
+        if: ${{ inputs.cache_mode == 'remote' }}
         env:
           XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
         run: exec ./.github/scripts/install-xcodecacheprog.sh
 
-      - name: Build tests without cache
+      - name: "build `${{ env.FASTLANE_LANE }}` without cache"
         env:
           ENABLE_XCODE_COMPILATION_CACHE: "false"
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
         run: exec ./.github/scripts/build-for-testing.sh
 
-      - name: Test first no-cache build
-        run: exec bundle exec fastlane ios test_without_building
-
-      - name: Remove build state
+      - name: Remove local build state
         run: |
           rm -rf build/DerivedData
           rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
 
-      - name: Build tests without cache after clean
+      - name: "build `${{ env.FASTLANE_LANE }}` without cache"
         env:
           ENABLE_XCODE_COMPILATION_CACHE: "false"
           XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
         run: exec ./.github/scripts/build-for-testing.sh
 
-      - name: Test second no-cache build
-        run: exec bundle exec fastlane ios test_without_building
-
-      - name: Remove build state
+      - name: Ensure first cached build starts without local CAS data
         run: |
-          rm -rf build/DerivedData
-          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
-
-      - name: Build tests with cache enabled
-        env:
-          ENABLE_XCODE_COMPILATION_CACHE: "true"
-        run: exec ./.github/scripts/build-for-testing.sh
-
-      - name: Test remote cached build with xcodecacheprog
-        run: |
-          XCTESTRUN_PATH="$(find "build/DerivedData/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
-          if [[ -z "${XCTESTRUN_PATH}" ]]; then
-            echo "No .xctestrun file found under build/DerivedData/Build/Products" >&2
-            exit 1
+          if [[ "${CACHE_MODE}" == "local" && "${CLEAR_LOCAL_CACHE_DIR}" == "true" ]]; then
+            rm -rf .ci/cas-build-cache
+          else
+            echo "Skipping local CAS cache directory cleanup"
           fi
 
-          xcodecacheprog test \
-            --xctestrun "${XCTESTRUN_PATH}" \
-            --destination "${DESTINATION}" \
-            --ignore-non-cacheable
+      - name: Remove local build state
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: "build `${{ env.FASTLANE_LANE }}` with ${{ inputs.cache_mode }} cache"
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "true"
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec ./.github/scripts/build-for-testing.sh
+
+      - name: Show warmed cache
+        if: ${{ inputs.cache_mode == 'local' }}
+        run: |
+          du -sh .ci/cas-build-cache
+          find .ci/cas-build-cache -maxdepth 2 -type f | head -n 30
+
+      - name: Remove local build state
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: "build `${{ env.FASTLANE_LANE }}`  with ${{ inputs.cache_mode }} cache"
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "true"
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec ./.github/scripts/build-for-testing.sh

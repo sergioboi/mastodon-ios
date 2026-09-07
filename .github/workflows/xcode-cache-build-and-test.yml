@@ -1,0 +1,102 @@
+name: Xcode cache build and test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  cas-cache-test:
+    name: Xcode cache build and test
+    runs-on: macos-15
+    env:
+      CACHE_MODE: remote
+      FASTLANE_LANE: build_tests
+      PROJECT: Mastodon.xcodeproj
+      SCHEME: Mastodon
+      TEST_PLAN: Mastodon
+      DESTINATION: "platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2"
+
+    steps:
+      - name: Print Mac machine info
+        run: |
+          echo "Runner:"
+          echo "  name=${RUNNER_NAME}"
+          echo "  os=${RUNNER_OS}"
+          echo "  arch=${RUNNER_ARCH}"
+
+          echo
+          echo "macOS:"
+          sw_vers
+
+          echo
+          echo "Hardware:"
+          echo "  model=$(sysctl -n hw.model)"
+          echo "  cpu=$(sysctl -n machdep.cpu.brand_string)"
+          echo "  arch=$(uname -m)"
+          echo "  physical_cores=$(sysctl -n hw.physicalcpu)"
+          echo "  logical_cores=$(sysctl -n hw.logicalcpu)"
+          mem_bytes="$(sysctl -n hw.memsize)"
+          ram_gb="$(awk -v bytes="${mem_bytes}" 'BEGIN { printf "%.2f", bytes / 1024 / 1024 / 1024 }')"
+          echo "  ram_gb=${ram_gb}"
+
+      - name: Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Build Environment
+        env:
+          NotificationEndpointDebug: ${{ secrets.NotificationEndpointDebug }}
+          NotificationEndpointRelease: ${{ secrets.NotificationEndpointRelease }}
+        run: exec ./.github/scripts/setup.sh
+
+      - name: Select required Xcode version
+        run: sudo xcode-select -switch /Applications/Xcode_26.2.app
+
+      - name: Install xcodecacheprog
+        env:
+          XCODECACHEPROG_TOKEN: ${{ secrets.XCODECACHEPROG_TOKEN }}
+        run: exec ./.github/scripts/install-xcodecacheprog.sh
+
+      - name: build-for-testing without cache
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "false"
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
+        run: exec ./.github/scripts/build-for-testing.sh
+
+      - name: test-without-building without cache
+        run: exec bundle exec fastlane ios test_without_building
+
+      - name: Remove local build state
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: build-for-testing without cache
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "false"
+          XCODE_XCCONFIG_FILE: ${{ github.workspace }}/.github/support/XcodeNoCache.xcconfig
+        run: exec ./.github/scripts/build-for-testing.sh
+
+      - name: test-without-building without cache
+        run: exec bundle exec fastlane ios test_without_building
+
+      - name: Remove local build state
+        run: |
+          rm -rf build/DerivedData
+          rm -rf "${HOME}/Library/Developer/Xcode/DerivedData"
+
+      - name: build-for-testing with remote cache
+        env:
+          ENABLE_XCODE_COMPILATION_CACHE: "true"
+        run: exec ./.github/scripts/build-for-testing.sh
+
+      - name: "`xcodecacheprog test` with remote cache"
+        run: |
+          XCTESTRUN_PATH="$(find "build/DerivedData/Build/Products" -maxdepth 1 -name '*.xctestrun' -print -quit)"
+          if [[ -z "${XCTESTRUN_PATH}" ]]; then
+            echo "No .xctestrun file found under build/DerivedData/Build/Products" >&2
+            exit 1
+          fi
+
+          xcodecacheprog test \
+            --xctestrun "${XCTESTRUN_PATH}" \
+            --destination "${DESTINATION}" \
+            --ignore-non-cacheable
