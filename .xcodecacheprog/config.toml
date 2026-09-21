@@ -1,1 +1,2 @@
-remote_url = "https://cache.us-west-a.buildfetch.com/Am6y9h/xcodecache"
+config_version = "1.0"
+remote_cache_url = "https://cache.us-west-a.buildfetch.com/Am6y9h/xcodecache/"
